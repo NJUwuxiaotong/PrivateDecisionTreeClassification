@@ -12,9 +12,15 @@ class DataPreProcess(object):
         self._att_values = None
         self._data_shape = None
 
-    def read_data_from_file(self):
+    def read_data_from_file(self, start_pos=0, end_pos=-1):
         try:
-            self._data = pd.read_csv(self._data_file_path, ',')[:1000]
+            self._data = pd.read_csv(self._data_file_path, ',')
+            r_n = self._data.shape[0]
+            if end_pos == -1 or end_pos > r_n:
+                print("INFO: choose data from %s to %s" % (start_pos, r_n))
+            else:
+                print("INFO: choose data from %s to %s" % (start_pos, end_pos))
+                self._data = self._data[start_pos:end_pos]
             updated_att_names = list()
             for att_name in self._data.columns:
                 updated_att_names.append(att_name.strip())

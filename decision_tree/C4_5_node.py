@@ -56,6 +56,18 @@ class LeafNode(Node):
             self._class_results = dict()
         self._class_results[class_key] = class_num
 
+    def get_most_frequent_class(self):
+        chosen_label = None
+        result = None
+        for class_label, value in self._class_results.items():
+            if result is None:
+                result = value
+                chosen_label = class_label
+            elif result < value:
+                result = value
+                chosen_label = class_label
+        return chosen_label
+
     @property
     def class_results(self):
         return self._class_results
