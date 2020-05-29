@@ -94,7 +94,8 @@ class C4_5(object):
         information = 0
         total_num = sum(d_usage)
         for class_value in self.att_class_value:
-            sub_usage = d_usage & (self._training_data[self.att_class] == class_value)
+            sub_usage = d_usage & (self._training_data[self.att_class]
+                                   == class_value)
             sub_num = sum(sub_usage)
             if sub_num != 0:
                 p = sub_num/total_num
@@ -116,7 +117,6 @@ class C4_5(object):
                 # self.get_continuous_median(att, d_usage)
                 # self.get_continuous_mean(att, d_usage)
                 #self.get_continuous_one_by_one(att, d_usage)
-
             return p_info, \
                    ["<<"+str(threshold), ">="+str(threshold)], usages
         else:
@@ -129,6 +129,20 @@ class C4_5(object):
                     overcomes.append(value)
                     usages.append(sub_usage)
             return gain_info, overcomes, usages
+
+    def get_num_of_sv_for_int64_att(self, d_usage, att, value):
+        pass
+    
+    def get_num_of_sv_for_discrete_att(self, d_usage, att, value):
+        pass
+
+    def get_label_num_of_sv_for_int64_att(self, d_usage, att, att_value,
+                                          c_label):
+        pass
+
+    def get_label_num_of_sv_for_discrete_att(self, d_usage, att, att_value,
+                                             c_label):
+        pass
 
     def get_continuous_one_by_one(self, att, d_usage):
         can_info = 1000000

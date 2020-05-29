@@ -1,7 +1,7 @@
 from decision_tree.C4_5 import C4_5
 
 
-class PrivateC4_5(C4_5):
+class PrivateC4_5_05P(C4_5):
     def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
                  tree_depth=None, privacy_parameter=1):
         super(C4_5, self).__init__(dataset_name, training_per, test_per,
@@ -9,11 +9,16 @@ class PrivateC4_5(C4_5):
         self.privacy_parameter = privacy_parameter
         self.privacy_per_level = privacy_parameter/self._tree_depth
 
-    def get_attribute(self):
+    def get_num_of_sv_for_int64_att(self, d_usage, att, value):
         pass
 
-    def laplace_mechanism(self):
+    def get_num_of_sv_for_discrete_att(self, d_usage, att, value):
         pass
 
-    def exponential_mechanism(self):
+    def get_label_num_of_sv_for_int64_att(self, d_usage, att, att_value,
+                                          c_label):
+        pass
+
+    def get_label_num_of_sv_for_discrete_att(self, d_usage, att, att_value,
+                                             c_label):
         pass
