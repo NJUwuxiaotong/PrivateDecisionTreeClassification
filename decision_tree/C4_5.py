@@ -2,6 +2,7 @@ import math
 import os
 import pandas as pd
 import random
+import time
 
 from common import constants as const
 from data_process.data_preprocess import DataPreProcess
@@ -33,6 +34,8 @@ class C45(object):
         else:
             self._tree_depth = tree_depth
         self.unit_space = "\t"
+        self.training_time = 0.0
+        self.test_time = 0.0
 
     def _check_file_path(self):
         dataset_absolute_path = const.DATASET_PATH + self._dataset_name \
@@ -41,6 +44,7 @@ class C45(object):
             const.DATASET_PATH + self._dataset_name \
             + const.ATTRIBUTE_TYPE_FILE_SUFFIX
 
+        print(dataset_absolute_path)
         if not os.path.exists(dataset_absolute_path):
             print(self._dataset_name)
             print("Error: Dataset [%s] doesn't exist." % self._dataset_name)
@@ -95,6 +99,8 @@ class C45(object):
         if self._attribute_type[att] == const.DFRAME_INT64:
             can_info = 1000000
             can_threshold = 0
+            can_l_usage = None
+            can_r_usage = None
             unique_values = self._training_data[att][d_usage].drop_duplicates(
                 keep='first').values
             unique_values.sort()
@@ -113,9 +119,11 @@ class C45(object):
                 if p_info < can_info:
                     can_info = p_info
                     can_threshold = threshold
+                    can_l_usage = l_usage
+                    can_r_usage = r_usage
             return can_info, \
                    ["<<"+str(can_threshold), ">="+str(can_threshold)], \
-                   [l_usage, r_usage]
+                   [can_l_usage, can_r_usage]
         else:
             gain_info = 0
             for value in self._attribute_values[att]:
@@ -126,6 +134,29 @@ class C45(object):
                     overcomes.append(value)
                     usages.append(sub_usage)
             return gain_info, overcomes, usages
+
+    def get_continuous_one_by_one(self, att, d_usage):
+        pass
+
+    def get_continuous_median(self, att, d_usage):
+        unique_values = self._training_data[att][d_usage].drop_duplicates(
+            keep='first').values
+        threshold = unique_values.median()
+        return threshold
+
+    def get_continuous_mean(self, att, d_usage):
+        unique_values = self._training_data[att][d_usage].drop_duplicates(
+            keep='first').values
+        threshold = unique_values.mean()
+        return threshold
+
+    def get_random_continuous(self, att, d_usage):
+        unique_values = self._training_data[att][d_usage].drop_duplicates(
+            keep='first').values
+        max_v = unique_values.max()
+        min_v = unique_values.min()
+        random.random()
+        return
 
     def _select_split_att(self, d_usage):
         split_att = None
@@ -167,7 +198,10 @@ class C45(object):
         data_usage = [True] * data_len
         current_depth = self._tree_depth
         print("Start to construct decision tree ......")
+        training_start_time = time.time()
         self.construct_sub_tree(None, current_depth, None, data_usage)
+        training_end_time = time.time()
+        self.training_time = training_end_time - training_start_time
         print("End to construct decision tree.")
 
     def construct_sub_tree(self, parent_node, max_depth, outcome, d_usage):
@@ -182,6 +216,7 @@ class C45(object):
                 self.check_leaf_same_class(d_usage):
             # no parent node
             leaf_node = self.set_leaf_node(d_usage)
+            print("NEW LEAF NODE: <%s>" % (leaf_node))
             if not parent_node:
                 self.root_node = leaf_node
                 self.root_node.set_parent_node(None)
@@ -192,6 +227,7 @@ class C45(object):
 
         # current node is non-leaf
         non_leaf_node = NonLeafNode(is_leaf=False, att_name=split_att)
+        print("New NON-LEAF NODE: <%s>" % (split_att))
         if not parent_node:
             self.root_node = non_leaf_node
         else:
@@ -232,22 +268,46 @@ class C45(object):
             att = node.att_name
             value = record[att].values[0]
             sub_nodes = node.sub_nodes
-            if value not in sub_nodes.keys():
-                return self.get_random_class_label()
+            if self._attribute_type[att] == const.DFRAME_INT64:
+                node_keys = list(sub_nodes.keys())
+                l_bp = node_keys[0]
+                r_bp = node_keys[1]
+                bp = float(l_bp[2:])
+                if value < bp:
+                    if l_bp[:2] == "<<":
+                        node = node.sub_nodes[l_bp]
+                    else:
+                        node = node.sub_nodes[r_bp]
+                else:
+                    if l_bp[:2] == "<<":
+                        node = node.sub_nodes[r_bp]
+                    else:
+                        node = node.sub_nodes[l_bp]
             else:
-                node = node.sub_nodes[value]
+                if value not in sub_nodes.keys():
+                    return self.get_random_class_label()
+                else:
+                    node = node.sub_nodes[value]
 
     def list_class_labels_of_test_data(self):
         class_labels = []
-        for i in range(10):
+        for i in range(self._test_data_shape[0]):
             record = self._test_data[i:i+1]
             class_label = self.get_class_label_of_record(record)
             class_labels.append(class_label)
         return class_labels
 
     def get_test_results(self):
+        test_start_time = time.time()
         test_class_labels = self.list_class_labels_of_test_data()
-        right_class_labels = self._test_data[0:10][self.att_class]
+        test_end_time = time.time()
+        self.test_time = test_end_time - test_start_time
+        right_class_labels = self._test_data[self.att_class]
         right_ratio = sum(test_class_labels == right_class_labels)/len(
             test_class_labels)
-        return right_ratio
+
+        print("------------------- Result Statistics ----------------------")
+        print("Training Time: %.5s" % self.training_time)
+        print("Test Time:     %.5s" % self.test_time)
+        print("Test Results:  %.5s" % right_ratio)
+        print("------------------------------------------------------------")

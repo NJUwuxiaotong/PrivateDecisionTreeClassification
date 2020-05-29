@@ -1,5 +1,4 @@
-DATASET_PATH = "D:\\workspace\\projects\\PrivateDecisionTree" \
-               "Classification\\datasets\\"
+DATASET_PATH = "F:\\workspace\\PrivateDecisionTreeClassification\\datasets\\"
 
 DATASET_SUFFIX = ".data"
 ATTRIBUTE_TYPE_FILE_SUFFIX = "_attribute.types"
