@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import os
 import pandas as pd
 import random
@@ -9,8 +10,9 @@ from data_process.data_preprocess import DataPreProcess
 from decision_tree.C4_5_node import NonLeafNode, LeafNode
 
 
-class C45(object):
-    def __init__(self, dataset_name, training_per=0.7, tree_depth=None):
+class C4_5(object):
+    def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
+                 tree_depth=None):
         self._dataset_name = dataset_name
         self._check_file_path()
         self._training_data = None
@@ -24,6 +26,10 @@ class C45(object):
         self.att_class = None          # only one class name
         self.att_class_value = list()    # class value
         self.training_per = training_per
+        self.test_per = test_per
+        self._check_parameters()
+        self.training_num = None
+        self.test_num = None
         dataset_absolute_path = \
             const.DATASET_PATH + self._dataset_name + const.DATASET_SUFFIX
         self.data_process = DataPreProcess(dataset_absolute_path)
@@ -56,16 +62,24 @@ class C45(object):
                   self._dataset_name)
             exit(1)
 
+    def _check_parameters(self):
+        if self.training_per + self.test_per > 1:
+            print("Error: The percentage (%s, %s) of data in training and "
+                  "test exceeds 1" % (self.training_per, self.test_per))
+            exit(1)
+
     def _read_data(self):
         self.data_process.read_data_from_file()
         self._training_data = self.data_process.data
         self._training_data_shape = self.data_process.data_shape
-        training_num = int(self._training_data_shape[0] * self.training_per)
-        self._test_data = self._training_data[training_num:]
-        self._training_data = self._training_data[:training_num]
-        self._training_data_shape = tuple([training_num,
+        self.training_num = \
+            int(self._training_data_shape[0] * self.training_per)
+        self.test_num = int(self._training_data_shape[0] * self.test_per)
+        self._test_data = self._training_data[-1*self.test_num:]
+        self._training_data = self._training_data[:self.training_num]
+        self._training_data_shape = tuple([self.training_num,
                                            self._training_data_shape[1]])
-        self._test_data_shape = tuple([len(self._test_data),
+        self._test_data_shape = tuple([self.test_num,
                                        self._training_data_shape[1]])
         self._attributes = self.data_process.attributes[:-1]
         self._attribute_num = len(self._attributes)
@@ -97,33 +111,14 @@ class C45(object):
         overcomes = list()
         usages = list()
         if self._attribute_type[att] == const.DFRAME_INT64:
-            can_info = 1000000
-            can_threshold = 0
-            can_l_usage = None
-            can_r_usage = None
-            unique_values = self._training_data[att][d_usage].drop_duplicates(
-                keep='first').values
-            unique_values.sort()
+            p_info, threshold, usages = \
+                self.get_random_continuous(att, d_usage)
+                # self.get_continuous_median(att, d_usage)
+                # self.get_continuous_mean(att, d_usage)
+                #self.get_continuous_one_by_one(att, d_usage)
 
-            if len(unique_values) == 1:
-                return self._information(d_usage), \
-                       "=="+str(unique_values[0]), \
-                       [d_usage, None]
-
-            for i in range(len(unique_values) - 1):
-                threshold = (unique_values[i] + unique_values[i+1])/2
-                l_usage = d_usage & (self._training_data[att] < threshold)
-                r_usage = d_usage & (self._training_data[att] >= threshold)
-                p_info = (sum(l_usage)*self._information(l_usage) +
-                          sum(r_usage)*self._information(r_usage))/total_num
-                if p_info < can_info:
-                    can_info = p_info
-                    can_threshold = threshold
-                    can_l_usage = l_usage
-                    can_r_usage = r_usage
-            return can_info, \
-                   ["<<"+str(can_threshold), ">="+str(can_threshold)], \
-                   [can_l_usage, can_r_usage]
+            return p_info, \
+                   ["<<"+str(threshold), ">="+str(threshold)], usages
         else:
             gain_info = 0
             for value in self._attribute_values[att]:
@@ -136,27 +131,68 @@ class C45(object):
             return gain_info, overcomes, usages
 
     def get_continuous_one_by_one(self, att, d_usage):
-        pass
-
-    def get_continuous_median(self, att, d_usage):
+        can_info = 1000000
+        can_threshold = 0
+        can_l_usage = None
+        can_r_usage = None
+        total_num = sum(d_usage)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
-        threshold = unique_values.median()
-        return threshold
+        unique_values.sort()
+
+        if len(unique_values) == 1:
+            return self._information(d_usage), unique_values[0], \
+                   [[False] * len(self._training_data), d_usage]
+
+        for i in range(len(unique_values) - 1):
+            threshold = (unique_values[i] + unique_values[i + 1]) / 2
+            l_usage, r_usage = self.get_left_right_usage(att, d_usage,
+                                                         threshold)
+            p_info = (sum(l_usage) * self._information(l_usage) +
+                      sum(r_usage) * self._information(r_usage)) / total_num
+            if p_info < can_info:
+                can_info = p_info
+                can_threshold = threshold
+                can_l_usage = l_usage
+                can_r_usage = r_usage
+        return can_info, can_threshold, [can_l_usage, can_r_usage]
+
+    def get_left_right_usage(self, att, d_usage, threshold):
+        l_usage = d_usage & (self._training_data[att] < threshold)
+        r_usage = d_usage & (self._training_data[att] >= threshold)
+        return l_usage, r_usage
+
+    def get_continuous_median(self, att, d_usage):
+        total_num = sum(d_usage)
+        unique_values = self._training_data[att][d_usage].drop_duplicates(
+            keep='first').values
+        threshold = np.median(unique_values)
+        l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
+        p_info = (sum(l_usage) * self._information(l_usage) +
+                  sum(r_usage) * self._information(r_usage)) / total_num
+        return p_info, threshold, [l_usage, r_usage]
 
     def get_continuous_mean(self, att, d_usage):
+        total_num = sum(d_usage)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         threshold = unique_values.mean()
-        return threshold
+        l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
+        p_info = (sum(l_usage) * self._information(l_usage) +
+                  sum(r_usage) * self._information(r_usage)) / total_num
+        return p_info, threshold, [l_usage, r_usage]
 
     def get_random_continuous(self, att, d_usage):
+        total_num = sum(d_usage)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         max_v = unique_values.max()
         min_v = unique_values.min()
-        random.random()
-        return
+        threshold = min_v + random.random()*(max_v - min_v)
+        l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
+        p_info = (sum(l_usage) * self._information(l_usage) +
+                  sum(r_usage) * self._information(r_usage)) / total_num
+        return p_info, threshold, [l_usage, r_usage]
 
     def _select_split_att(self, d_usage):
         split_att = None
@@ -306,8 +342,8 @@ class C45(object):
         right_ratio = sum(test_class_labels == right_class_labels)/len(
             test_class_labels)
 
-        print("------------------- Result Statistics ----------------------")
-        print("Training Time: %.5s" % self.training_time)
-        print("Test Time:     %.5s" % self.test_time)
-        print("Test Results:  %.5s" % right_ratio)
-        print("------------------------------------------------------------")
+        print("----------- Result Statistics -----------")
+        print("| Training Time | %.5s                 |" % self.training_time)
+        print("| Test Time     | %.5s                 |" % self.test_time)
+        print("| Test Results  | %.5s                 |" % right_ratio)
+        print("-----------------------------------------")
