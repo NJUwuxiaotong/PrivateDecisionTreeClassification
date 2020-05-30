@@ -11,22 +11,27 @@ from decision_tree.C4_5_node import NonLeafNode, LeafNode
 
 
 class C4_5(object):
+    """
+    Literature: J. Ross Quinlan. C4.5: Programs for machine learning.
+    """
     def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
-                 tree_depth=None):
+                 tree_depth=None, is_private=False, privacy_value=1):
         self._dataset_name = dataset_name
         self._check_file_path()
-        self._training_data = None
+        self._training_data = None       # type: DataFrame
         self._training_data_shape = None
         self._test_data = None
         self._test_data_shape = None
-        self._attributes = None   # (key, value) except of class
+        self._attributes = None          # (key, value) except of class
         self._attribute_values = None
-        self._attribute_type = None    # attribute type except of class
-        self._attribute_num = 0        # except of class
-        self.att_class = None          # only one class name
+        self._attribute_type = None      # attribute type except of class
+        self._attribute_num = 0          # except of class
+        self.att_class = None            # only one class name
         self.att_class_value = list()    # class value
         self.training_per = training_per
         self.test_per = test_per
+        self.is_private = is_private
+        self.privacy_value_per_query = privacy_value
         self._check_parameters()
         self.training_num = None
         self.test_num = None
@@ -90,13 +95,16 @@ class C4_5(object):
         self._attribute_type = self.data_process.attribute_types
         self._attribute_type.pop(self.att_class)
 
-    def _information(self, d_usage):
+    def _information(self, d_usage, total_num, is_privacy=False,
+                     privacy_value=None):
         information = 0
-        total_num = sum(d_usage)
+        # total_num = sum(d_usage)
         for class_value in self.att_class_value:
             sub_usage = d_usage & (self._training_data[self.att_class]
                                    == class_value)
-            sub_num = sum(sub_usage)
+            # sub_num = sum(sub_usage)
+            sub_num = self.get_num_of_records(sub_usage, is_privacy,
+                                              privacy_value)
             if sub_num != 0:
                 p = sub_num/total_num
                 information -= p * math.log2(p)
@@ -113,99 +121,99 @@ class C4_5(object):
         usages = list()
         if self._attribute_type[att] == const.DFRAME_INT64:
             p_info, threshold, usages = \
-                self.get_random_continuous(att, d_usage)
-                # self.get_continuous_median(att, d_usage)
-                # self.get_continuous_mean(att, d_usage)
-                #self.get_continuous_one_by_one(att, d_usage)
+                self.get_split_value_of_int64(att, d_usage, self.is_private,
+                                              self.privacy_value_per_query)
             return p_info, \
                    ["<<"+str(threshold), ">="+str(threshold)], usages
         else:
             gain_info = 0
             for value in self._attribute_values[att]:
                 sub_usage = d_usage & (self._training_data[att] == value)
-                sub_num = sum(sub_usage)
+                # sub_num = sum(sub_usage)
+                sub_num = self.get_num_of_records(
+                    sub_usage, self.is_private, self.privacy_value_per_query)
                 if sub_num != 0:
-                    gain_info += sub_num/total_num*self._information(sub_usage)
+                    gain_info += sub_num / total_num * self._information(
+                        sub_usage, sub_num)
                     overcomes.append(value)
                     usages.append(sub_usage)
             return gain_info, overcomes, usages
 
-    def get_num_of_sv_for_int64_att(self, d_usage, att, value):
-        pass
-    
-    def get_num_of_sv_for_discrete_att(self, d_usage, att, value):
-        pass
+    def get_num_of_records(self, d_usage, is_privacy=False,
+                           privacy_value=None):
+        if not is_privacy:
+            return sum(d_usage)
+        else:
+            return sum(d_usage) + self.noisy(privacy_value)
 
-    def get_label_num_of_sv_for_int64_att(self, d_usage, att, att_value,
-                                          c_label):
-        pass
+    def noisy(self, privacy_value):
+        """
+        Function: provide an interface to add the noisy for privacy
+        preservation
+        """
+        return 0.0
 
-    def get_label_num_of_sv_for_discrete_att(self, d_usage, att, att_value,
-                                             c_label):
-        pass
-
-    def get_continuous_one_by_one(self, att, d_usage):
+    def get_threshold_by_1b1(self, att, d_usage):
         can_info = 1000000
         can_threshold = 0
-        can_l_usage = None
-        can_r_usage = None
         total_num = sum(d_usage)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         unique_values.sort()
 
         if len(unique_values) == 1:
-            return self._information(d_usage), unique_values[0], \
-                   [[False] * len(self._training_data), d_usage]
+            return unique_values[0]
 
         for i in range(len(unique_values) - 1):
             threshold = (unique_values[i] + unique_values[i + 1]) / 2
-            l_usage, r_usage = self.get_left_right_usage(att, d_usage,
-                                                         threshold)
-            p_info = (sum(l_usage) * self._information(l_usage) +
-                      sum(r_usage) * self._information(r_usage)) / total_num
+            l_usage, r_usage = self.get_left_right_usage(
+                att, d_usage, threshold)
+            p_info = \
+                (sum(l_usage) * self._information(l_usage, sum(l_usage)) +
+                 sum(r_usage) * self._information(r_usage, sum(r_usage))) / \
+                total_num
             if p_info < can_info:
                 can_info = p_info
                 can_threshold = threshold
-                can_l_usage = l_usage
-                can_r_usage = r_usage
-        return can_info, can_threshold, [can_l_usage, can_r_usage]
+        return can_threshold
 
     def get_left_right_usage(self, att, d_usage, threshold):
         l_usage = d_usage & (self._training_data[att] < threshold)
         r_usage = d_usage & (self._training_data[att] >= threshold)
         return l_usage, r_usage
 
-    def get_continuous_median(self, att, d_usage):
-        total_num = sum(d_usage)
+    def get_split_value_of_int64(self, att, d_usage, is_privacy=False,
+                                 privacy_value=None, split_type="random"):
+        """
+        split type: random, median, mean, complex
+        """
+        #total_num = sum(d_usage)
+        total_num = self.get_num_of_records(d_usage, is_privacy)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
-        threshold = np.median(unique_values)
-        l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
-        p_info = (sum(l_usage) * self._information(l_usage) +
-                  sum(r_usage) * self._information(r_usage)) / total_num
-        return p_info, threshold, [l_usage, r_usage]
+        if split_type == "random":
+            max_v = unique_values.max()
+            min_v = unique_values.min()
+            threshold = min_v + random.random()*(max_v - min_v)
+        elif split_type == "mean":
+            threshold = unique_values.mean()
+        elif split_type == "median":
+            threshold = np.median(unique_values)
+        elif split_type == "complex":
+            threshold = self.get_threshold_by_1b1(att, d_usage)
+        else:
+            print("Error: Chosen split method %s is not in "
+                  "[random, mean, median, complex]" % split_type)
+            exit(1)
 
-    def get_continuous_mean(self, att, d_usage):
-        total_num = sum(d_usage)
-        unique_values = self._training_data[att][d_usage].drop_duplicates(
-            keep='first').values
-        threshold = unique_values.mean()
         l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
-        p_info = (sum(l_usage) * self._information(l_usage) +
-                  sum(r_usage) * self._information(r_usage)) / total_num
-        return p_info, threshold, [l_usage, r_usage]
-
-    def get_random_continuous(self, att, d_usage):
-        total_num = sum(d_usage)
-        unique_values = self._training_data[att][d_usage].drop_duplicates(
-            keep='first').values
-        max_v = unique_values.max()
-        min_v = unique_values.min()
-        threshold = min_v + random.random()*(max_v - min_v)
-        l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
-        p_info = (sum(l_usage) * self._information(l_usage) +
-                  sum(r_usage) * self._information(r_usage)) / total_num
+        l_num = self.get_num_of_records(l_usage, is_privacy, privacy_value)
+        r_num = self.get_num_of_records(r_usage, is_privacy, privacy_value)
+        p_info = \
+            (l_num * self._information(
+                l_usage, l_num, is_privacy, privacy_value) +
+             r_num * self._information(
+                        r_usage, r_num, is_privacy, privacy_value)) / total_num
         return p_info, threshold, [l_usage, r_usage]
 
     def _select_split_att(self, d_usage):
@@ -213,11 +221,12 @@ class C4_5(object):
         sub_usages = None
         overcomes = None
 
-        gain_info = self._information(d_usage)
+        gain_info = self._information(d_usage, sum(d_usage), is_privacy=False)
         info_gain = 10000
         for att in self._attributes:
             can_info_gain, can_overcomes, can_sub_usages = \
-                self._information_after_division(d_usage, att)
+                self._information_after_division(
+                    d_usage, att)
 
             if can_info_gain < info_gain:
                 info_gain = can_info_gain
@@ -299,6 +308,9 @@ class C4_5(object):
             print("%s%s --> %s" % (t_space, outcome, current_node.att_name))
             for sub_outcome, sub_node in current_node.sub_nodes.items():
                 self.show_C4_5(sub_node, sub_outcome, t_space+self.unit_space)
+
+    def prune(self):
+        pass
 
     def get_random_class_label(self):
         label_num = len(self.att_class_value)
