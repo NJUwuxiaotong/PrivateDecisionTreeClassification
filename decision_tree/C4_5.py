@@ -195,6 +195,7 @@ class C4_5(object):
             max_v = unique_values.max()
             min_v = unique_values.min()
             threshold = min_v + random.random()*(max_v - min_v)
+
         elif split_type == "mean":
             threshold = unique_values.mean()
         elif split_type == "median":
@@ -264,7 +265,7 @@ class C4_5(object):
         print("End to construct decision tree.")
 
     def construct_sub_tree(self, parent_node, max_depth, outcome, d_usage):
-        if max_depth == 0:
+        if max_depth == 0 or sum(d_usage) == 0:
             return
 
         info_gain, split_att, outcomes, sub_usages = \
@@ -332,19 +333,33 @@ class C4_5(object):
             sub_nodes = node.sub_nodes
             if self._attribute_type[att] == const.DFRAME_INT64:
                 node_keys = list(sub_nodes.keys())
-                l_bp = node_keys[0]
-                r_bp = node_keys[1]
-                bp = float(l_bp[2:])
-                if value < bp:
-                    if l_bp[:2] == "<<":
-                        node = node.sub_nodes[l_bp]
+
+                if len(node_keys) == 0:
+                    return self.get_random_class_label()
+
+                if len(node_keys) == 1:
+                    bp = float(node_keys[0][2:])
+                    if (value < bp and node_keys[0][:2] == "<<") or \
+                            (value > bp and node_keys[0][:2] == ">="):
+                        node = node.sub_nodes[node_keys[0]]
                     else:
-                        node = node.sub_nodes[r_bp]
-                else:
-                    if l_bp[:2] == "<<":
-                        node = node.sub_nodes[r_bp]
+                        return self.get_random_class_label()
+
+                if len(node_keys) == 2:
+                    l_bp = node_keys[0]
+                    r_bp = node_keys[1]
+                    bp = float(l_bp[2:])
+
+                    if value < bp:
+                        if l_bp[:2] == "<<":
+                            node = node.sub_nodes[l_bp]
+                        else:
+                            node = node.sub_nodes[r_bp]
                     else:
-                        node = node.sub_nodes[l_bp]
+                        if l_bp[:2] == "<<":
+                            node = node.sub_nodes[r_bp]
+                        else:
+                            node = node.sub_nodes[l_bp]
             else:
                 if value not in sub_nodes.keys():
                     return self.get_random_class_label()

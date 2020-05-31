@@ -1,7 +1,5 @@
-import math
-
 from decision_tree.C4_5 import C4_5
-
+from pub_lib import pub_functions
 
 class PrivateC4_5_05P(C4_5):
     """
@@ -11,19 +9,25 @@ class PrivateC4_5_05P(C4_5):
     """
     def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
                  tree_depth=None, privacy_value=1):
-        super(C4_5, self).__init__(dataset_name, training_per, test_per,
-                                   tree_depth, True, privacy_value)
+        super(PrivateC4_5_05P, self).__init__(
+            dataset_name, training_per=training_per, test_per=test_per,
+            tree_depth=tree_depth, is_private=True,
+            privacy_value=privacy_value)
         self.privacy_value_per_query = \
-            privacy_value / 2 / self._tree_depth / self._attribute_num
+            privacy_value / (2 * self._tree_depth * self._attribute_num)
         self.sensitivity = 1
         self.privacy_parameter = self.sensitivity/self.privacy_value_per_query
 
     def noisy(self, privacy_value):
         """
         Function: provide an interface to add the noisy for privacy
-        preservation
+        preservation.
+        It chooses Laplace mechanism.
+                Probability density function:
+        Pr(x|l) = 1/(2*l)*exp^{-|x|/l}, in which l=sensitivity/privacy_value
+        So, the probability distributed function:
+            F(x) =  exp^{x/l}/2               x<0
+                    1-exp{-x/l}/2             x>0
         """
-        return 0.0
-
-    def laplace_mechanism(self, privacy_value):
-        p = 1/(2*self.privacy_parameter)*math.exp(-|x|/self.privacy_parameter)
+        return pub_functions.generate_random_value_from_Laplace(
+            0, 10, self.privacy_parameter)
