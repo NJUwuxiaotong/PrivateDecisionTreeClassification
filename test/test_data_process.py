@@ -9,4 +9,4 @@ data_pro.read_data_from_file(record_num=1000)
 
 print(data_pro.data_shape)
 
-#data_pro.show_statistical_info()
+# data_pro.show_statistical_info()

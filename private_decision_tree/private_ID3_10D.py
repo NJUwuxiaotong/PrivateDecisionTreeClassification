@@ -3,7 +3,7 @@ import math
 
 from common import constants as const
 from decision_tree.ID3 import ID3
-from decision_tree.ID3_node import NonLeafNode, LeafNode
+from decision_tree.decision_tree_node import NonLeafNode, LeafNode
 from pub_lib import pub_functions
 
 
@@ -72,17 +72,20 @@ class PrivateID3_10D(ID3):
         overcomes = dict()
 
         for att in candidate_atts:
-            info = eval(func)(d_usage, att)
+            info, overcome = eval(func)(d_usage, att)
             info = privacy_value * info / (2 * eval(func + "_sensitivity")())
             infos.append(info)
+            overcomes[att] = overcome
 
         chosen_index = pub_functions.generate_random_value_from_exponential(
             infos)
-        return candidate_atts[chosen_index]
+        return candidate_atts[chosen_index], candidate_atts[chosen_index], \
+               overcomes[candidate_atts[chosen_index]].keys(), \
+               overcomes[candidate_atts[chosen_index]].values()\
 
     def information_gain(self, d_usage, att):
         info = 0
-
+        overcomes = dict()
         if self._attribute_type[att] == const.DFRAME_INT64:
             pass
         else:
@@ -94,6 +97,7 @@ class PrivateID3_10D(ID3):
                 if v_num == 0:
                     continue
 
+                overcomes[value] = v_usage
                 for class_value in self.class_att_value:
                     c_usage = v_usage & (
                             self._training_data[self.class_att] == class_value)
@@ -101,7 +105,7 @@ class PrivateID3_10D(ID3):
                     if c_num > 0 :
                         p = c_num / v_num
                         info -= p * math.log2(p)
-        return info
+        return info, overcomes
 
     def information_gain_sensitivity(self):
         return math.log2(self._training_data_shape[0] + 1) + 1/math.log(2)
@@ -111,6 +115,7 @@ class PrivateID3_10D(ID3):
         used in CART algorithm.
         """
         g_info = 0
+        overcomes = dict()
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         for value in unique_values:
@@ -120,6 +125,7 @@ class PrivateID3_10D(ID3):
             if v_num == 0:
                 continue
 
+            overcomes[value] = v_usage
             for class_value in self.class_att_value:
                 c_usage = v_usage & \
                           (self._training_data[self.class_att] == class_value)
@@ -128,13 +134,14 @@ class PrivateID3_10D(ID3):
                     p = c_num / v_num
                     info += p * p
             g_info -= v_num * (1 - info)
-        return g_info
+        return g_info, overcomes
 
     def gini_index_sensitivity(self):
         return 2
 
     def max_operator(self, d_usage, att):
         info = 0
+        overcomes = dict()
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         for value in unique_values:
@@ -145,7 +152,7 @@ class PrivateID3_10D(ID3):
                 c_num = sum(c_usage)
                 if c_num > info:
                     info = c_num
-        return info
+        return info, overcomes
 
     def max_operator_sensitivity(self):
         return 1
@@ -156,23 +163,23 @@ class PrivateID3_10D(ID3):
     def gain_ratio_sensitivity(self):
         pass
 
-    def construct_sub_tree(self, parent_node, d_usage, candidate_atts,
+    def construct_sub_tree(self, parent_node, d_usage, candidate_attributes,
                            max_depth, outcome):
         if max_depth == 0 or sum(d_usage) == 0:
             return
 
-        att_max_num = self.get_max_num_of_att_values(candidate_atts, d_usage)
+        att_max_num = self.get_max_num_of_att_values(candidate_attributes, d_usage)
         record_num = self.get_num_of_records(d_usage, True,
                                              self.privacy_value_per_node)
 
-        info = self._information(d_usage, record_num, is_privacy=False)
+        info = self._information_entropy(d_usage, record_num, is_privacy=False)
         info_gain, split_att, outcomes, sub_usages = \
-            self._select_split_att(d_usage, candidate_atts)
+            self.expMech(d_usage, candidate_attributes)
         info_gain = info + info_gain
 
         # current node is leaf
         if self.check_conditions_of_leaf_node(
-                info_gain, max_depth, candidate_atts, d_usage,
+                info_gain, max_depth, candidate_attributes, d_usage,
                 {"att_max_num": att_max_num, "record_num": record_num}):
             # no parent node
             leaf_node = self.set_leaf_node(d_usage)
@@ -195,11 +202,10 @@ class PrivateID3_10D(ID3):
 
         num = 0
         for sub_outcome in outcomes:
-            sub_candidate_atts = copy.deepcopy(candidate_atts)
+            sub_candidate_atts = copy.deepcopy(candidate_attributes)
             sub_candidate_atts = sub_candidate_atts[
                 sub_candidate_atts != split_att]
             self.construct_sub_tree(non_leaf_node, sub_usages[num],
                                     sub_candidate_atts, max_depth-1,
                                     sub_outcome)
             num += 1
-

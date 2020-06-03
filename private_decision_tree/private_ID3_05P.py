@@ -4,7 +4,7 @@ import time
 
 from common import constants as const
 from decision_tree.ID3 import ID3
-from decision_tree.ID3_node import NonLeafNode, LeafNode
+from decision_tree.decision_tree_node import NonLeafNode, LeafNode
 from pub_lib import pub_functions
 
 
@@ -75,7 +75,7 @@ class PrivateID3_05P(ID3):
                 chosen_label = label
         return chosen_label
 
-    def construct_sub_tree(self, parent_node, d_usage, candidate_atts,
+    def construct_sub_tree(self, parent_node, d_usage, candidate_attributes,
                            max_depth, outcome):
         """
         parent_node: parent node
@@ -87,18 +87,18 @@ class PrivateID3_05P(ID3):
         if max_depth == 0 or sum(d_usage) == 0:
             return
 
-        att_max_num = self.get_max_num_of_att_values(candidate_atts, d_usage)
+        att_max_num = self.get_max_num_of_att_values(candidate_attributes, d_usage)
         record_num = self.get_num_of_records(d_usage, True,
                                              self.privacy_value_per_node)
 
-        info = self._information(d_usage, record_num, is_privacy=False)
+        info = self._information_entropy(d_usage, record_num, is_privacy=False)
         info_gain, split_att, outcomes, sub_usages = \
-            self._select_split_att(d_usage, candidate_atts)
+            self._select_split_attribute(d_usage, candidate_attributes)
         info_gain = info + info_gain
 
         # current node is leaf
         if self.check_conditions_of_leaf_node(
-                info_gain, max_depth, candidate_atts, d_usage,
+                info_gain, max_depth, candidate_attributes, d_usage,
                 {"att_max_num": att_max_num, "record_num": record_num}):
             # no parent node
             leaf_node = self.set_leaf_node(d_usage)
@@ -121,7 +121,7 @@ class PrivateID3_05P(ID3):
 
         num = 0
         for sub_outcome in outcomes:
-            sub_candidate_atts = copy.deepcopy(candidate_atts)
+            sub_candidate_atts = copy.deepcopy(candidate_attributes)
             sub_candidate_atts = sub_candidate_atts[
                 sub_candidate_atts != split_att]
             self.construct_sub_tree(non_leaf_node, sub_usages[num],
