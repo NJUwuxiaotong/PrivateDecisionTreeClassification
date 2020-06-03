@@ -47,27 +47,16 @@ class NonLeafNode(Node):
 
 
 class LeafNode(Node):
-    def __init__(self, parent_node=None, is_leaf=None, class_results=None):
+    def __init__(self, parent_node=None, is_leaf=None, class_result=None):
+        """
+        class_result: output class
+        """
         super(LeafNode, self).__init__(parent_node, is_leaf)
-        self._class_results = class_results
+        self._class_result = class_result
 
-    def add_class_result(self, class_key, class_num):
-        if not self._class_results:
-            self._class_results = dict()
-        self._class_results[class_key] = class_num
-
-    def get_most_frequent_class(self):
-        chosen_label = None
-        result = None
-        for class_label, value in self._class_results.items():
-            if result is None:
-                result = value
-                chosen_label = class_label
-            elif result < value:
-                result = value
-                chosen_label = class_label
-        return chosen_label
+    def set_class_result(self, class_key):
+        self._class_result = class_key
 
     @property
     def class_results(self):
-        return self._class_results
+        return self._class_result
