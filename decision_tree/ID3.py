@@ -16,7 +16,7 @@ class ID3(DecisionTree):
         super(ID3, self).__init__(dataset_name, training_per, test_per,
                                   tree_depth)
 
-    def get_information_of_discrete_attribute(self, d_usage, att):
+    def get_information_of_discrete_attribute(self, d_usage, att, *params):
         total_num = sum(d_usage)
         info_entropy_after_split = 0
         overcomes = list()
@@ -32,7 +32,7 @@ class ID3(DecisionTree):
         return info_entropy_after_split, overcomes, usages
 
     def get_information_of_int64_attribute(self, att, d_usage,
-                                           split_type="mean"):
+                                           split_type="mean", *params):
         """
         split type: random, median, mean, complex
         """
@@ -87,7 +87,8 @@ class ID3(DecisionTree):
                 can_threshold = threshold
         return can_threshold
 
-    def _generate_information_of_specified_attribute(self, d_usage, att):
+    def _generate_information_of_specified_attribute(self, d_usage, att,
+                                                     *params):
         """
         param d_usage: data
         param att: attribute
@@ -95,11 +96,13 @@ class ID3(DecisionTree):
         """
         if self._attribute_type[att] == const.DFRAME_INT64:
             info_entropy_after_split, overcomes, usages = \
-                self.get_information_of_int64_attribute(att, d_usage)
+                self.get_information_of_int64_attribute(
+                    att, d_usage, "mean", params[0])
             return info_entropy_after_split, overcomes, usages
         else:
             info_entropy_after_split, overcomes, usages = \
-                self.get_information_of_discrete_attribute(d_usage, att)
+                self.get_information_of_discrete_attribute(d_usage, att,
+                                                           params[0])
             return info_entropy_after_split, overcomes, usages
 
     def get_left_right_usage(self, att, d_usage, threshold):
@@ -107,23 +110,25 @@ class ID3(DecisionTree):
         r_usage = d_usage & (self._training_data[att] >= threshold)
         return l_usage, r_usage
 
-    def _information_gain(self, d_usage, att):
+    def _information_gain(self, d_usage, att, *params):
         info_entropy_before_split = self._information_entropy(d_usage)
         info_entropy_after_split, overcomes, sub_usages = \
-            self._generate_information_of_specified_attribute(d_usage, att)
+            self._generate_information_of_specified_attribute(
+                d_usage, att, params[0])
         info_gain = info_entropy_before_split - info_entropy_after_split
         return info_gain, overcomes, sub_usages
 
-    def _select_split_attribute(self, d_usage, candidate_attributes):
+    def _select_split_attribute(self, d_usage, candidate_attributes, *params):
         split_attribute = None
         sub_usages = None
         overcomes = None
-        info_gain = 0
+        info_gain = None
         for att in candidate_attributes:
             can_info_gain, can_overcomes, can_sub_usages = \
-                self._information_gain(d_usage, att)
+                self._information_gain(d_usage, att, params[0])
 
-            if can_info_gain > info_gain:
+            print("can_info_gain: %s" % can_info_gain)
+            if info_gain is None or can_info_gain > info_gain:
                 info_gain = can_info_gain
                 split_attribute = att
                 sub_usages = can_sub_usages

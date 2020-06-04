@@ -53,9 +53,20 @@ class LeafNode(Node):
         """
         super(LeafNode, self).__init__(parent_node, is_leaf)
         self._class_result = class_result
+        self._class_values = dict()
 
     def set_class_result(self, class_key):
         self._class_result = class_key
+
+    def add_class_value(self, class_key, class_value):
+        if class_key in self._class_values.keys():
+            print("WARNING: class key [%s] has been in class values"
+                  % class_key)
+        self._class_values[class_key] = class_value
+
+    @property
+    def class_values(self):
+        return self._class_values
 
     @property
     def class_results(self):

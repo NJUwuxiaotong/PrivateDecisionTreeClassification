@@ -131,6 +131,11 @@ class DecisionTree(object):
 
     def set_leaf_node(self, usage):
         leaf_node = LeafNode(is_leaf=True)
+        for class_key in self.class_att_value:
+            c_usage = usage & (self._training_data[self.class_att] == class_key)
+            c_num = sum(c_usage)
+            if c_num > 0:
+                leaf_node.add_class_value(class_key, c_num)
         leaf_node.set_class_result(self.get_most_frequent_class(usage))
         return leaf_node
 
@@ -166,9 +171,6 @@ class DecisionTree(object):
             for sub_outcome, sub_node in current_node.sub_nodes.items():
                 self.show_structure_of_decision_tree(
                     sub_node, sub_outcome, t_space + self.unit_space)
-
-    def prune(self):
-        pass
 
     def get_random_class_label(self):
         label_num = len(self.class_att_value)
