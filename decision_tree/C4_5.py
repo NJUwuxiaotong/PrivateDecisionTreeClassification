@@ -4,7 +4,7 @@ from decision_tree.ID3 import ID3
 
 
 class C45(ID3):
-    def _select_split_attribute(self, d_usage, candidate_attributes):
+    def _select_split_attribute(self, d_usage, candidate_attributes, *params):
         gain_ratio = 0
         split_attribute = None
         sub_usages = None
@@ -14,7 +14,8 @@ class C45(ID3):
         for att in candidate_attributes:
             information_value = 0
             can_info_gain, can_overcomes, can_sub_usages = \
-                self._generate_information_of_specified_attribute(d_usage, att)
+                self._generate_information_of_specified_attribute(
+                    d_usage, att, params[0])
 
             for sub_usage in can_sub_usages:
                 p = sum(sub_usage)/total_num

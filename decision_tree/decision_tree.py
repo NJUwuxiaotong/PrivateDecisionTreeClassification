@@ -30,10 +30,13 @@ class DecisionTree(object):
         self._check_parameters()
         self.training_num = None
         self.test_num = None
+        self.range_of_int64_attributes = None
+        self.get_range_of_int64_attributes()
         dataset_absolute_path = \
             const.DATASET_PATH + self._dataset_name + const.DATASET_SUFFIX
         self.data_process = DataPreProcess(dataset_absolute_path)
         self._read_data()
+
         self.root_node = None
         if tree_depth is None:
             self._tree_depth = int(self._attribute_num/2)
@@ -89,6 +92,16 @@ class DecisionTree(object):
             self.class_att)
         self._attribute_type = self.data_process.attribute_types
         self._attribute_type.pop(self.class_att)
+
+    def get_range_of_int64_attributes(self):
+        self.range_of_int64_attributes = list()
+        for att in self._attributes:
+            if self._attribute_type[att] == const.DFRAME_INT64:
+                values = self._training_data[att].values
+                max_value = values.max()
+                min_value = values.min()
+                self.range_of_int64_attributes[att] = [min_value*0.75,
+                                                       max_value*(1+0.25)]
 
     def _information_entropy(self, d_usage):
         total_num = sum(d_usage)

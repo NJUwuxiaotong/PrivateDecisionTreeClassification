@@ -126,8 +126,6 @@ class ID3(DecisionTree):
         for att in candidate_attributes:
             can_info_gain, can_overcomes, can_sub_usages = \
                 self._information_gain(d_usage, att, params[0])
-
-            print("can_info_gain: %s" % can_info_gain)
             if info_gain is None or can_info_gain > info_gain:
                 info_gain = can_info_gain
                 split_attribute = att
@@ -139,7 +137,7 @@ class ID3(DecisionTree):
                            max_depth, outcome):
         candidate_attribute_num = len(candidate_attributes)
         info_gain, split_attribute, outcomes, sub_usages = \
-            self._select_split_attribute(d_usage, candidate_attributes)
+            self._select_split_attribute(d_usage, candidate_attributes, None)
 
         # leaf node
         if candidate_attribute_num == 0 or max_depth == 1 or info_gain == 0 \

@@ -17,6 +17,7 @@ class PrivateLapID305P(ID3):
             dataset_name, training_per, test_per, tree_depth)
         self.privacy_budget = privacy_budget
         self.privacy_budget_per_node = self.privacy_budget/(2 * tree_depth)
+        self.sentivity = 1
 
     def noisy(self, privacy_value):
         """
@@ -30,11 +31,11 @@ class PrivateLapID305P(ID3):
                     1-exp{-x/l}/2             x>0
         """
         return pub_functions.generate_random_value_from_Laplace(
-            -3, 3, privacy_value)
+            -3, 3, self.sentivity/privacy_value)
 
-    def get_num_with_noisy(self, usage, privacy_value):
+    def get_num_with_noisy(self, usage, sensivity, privacy_value):
         u_num = sum(usage)
-        return u_num + self.noisy(privacy_value)
+        return u_num + self.noisy(sensivity/privacy_value)
 
     def get_max_num_of_att_values(self, attributes, usage):
         max_num = 0
@@ -144,7 +145,7 @@ class PrivateLapID305P(ID3):
                            max_depth, outcome):
         candidate_attribute_num = len(candidate_attributes)
         total_num_with_noisy = self.get_num_with_noisy(
-            d_usage, self.privacy_budget_per_node)
+            d_usage, 1, self.privacy_budget_per_node)
         att_max_num = self.get_max_num_of_att_values(candidate_attributes,
                                                      d_usage)
 

@@ -16,16 +16,17 @@ class CART(ID3):
             gini_index -= p * p
         return gini_index
 
-    def _select_split_attribute(self, d_usage, candidate_attributes):
+    def _select_split_attribute(self, d_usage, candidate_attributes, *params):
         split_attribute = None
         sub_usages = None
         overcomes = None
         gini_index = None
         for att in candidate_attributes:
             can_gini_index, can_overcomes, can_sub_usages = \
-                self._generate_information_of_specified_attribute(d_usage, att)
+                self._generate_information_of_specified_attribute(
+                    d_usage, att, params[0])
 
-            if gini_index is None or can_gini_index < gini_index:
+            if gini_index is None or can_gini_index > gini_index:
                 gini_index = can_gini_index
                 split_attribute = att
                 sub_usages = can_sub_usages
