@@ -1,5 +1,7 @@
 import copy
 import math
+import numpy as np
+import random
 
 from common import constants as const
 from decision_tree.ID3 import ID3
@@ -66,27 +68,20 @@ class PrivateID310D(ID3):
         for label in self.class_att_value:
             r = usage & (self._training_data[self.class_att] == label)
             r_num = sum(r)
-            noisy_value = self.noisy(self.privacy_value_per_node)
+            noisy_value = self.noisy(1, self.privacy_value_per_node)
             if (result is None) or (result < r_num + noisy_value):
                 result = r_num + noisy_value
                 chosen_label = label
         return chosen_label
 
+    def array_normalization(self, value_list):
+        if not isinstance(value_list, np.ndarray):
+            value_list = np.array(value_list)
+        value_sum = np.sum(value_list)
+        value_list = 10 * value_list / value_sum
+        return value_list
 
-
-    def divide_int64_attribute(self, att):
-        attribute_range = self.range_of_int64_attributes[att]
-        exp_value_list = list()
-        for i in range(self.num_of_ranges_for_int64):
-            exp_value = 0
-
-        chosen_index = pub_functions.generate_random_value_from_exponential(
-            exp_value_list)
-        threshold = 0
-        return threshold
-
-
-    def expMech(self, d_usage, candidate_atts, privacy_value):
+    def exponential_mechanism(self, d_usage, candidate_atts, privacy_value):
         """
         func: information function name
         """
@@ -94,27 +89,73 @@ class PrivateID310D(ID3):
         overcomes = dict()
         for att in candidate_atts:
             if self._attribute_type[att] == const.DFRAME_INT64:
-                pass
+                split_value = self.get_split_value_of_int64_attribute(
+                    d_usage, att, privacy_value)
+                info, overcome = self.information_gain(d_usage, att,
+                                                       split_value)
             else:
                 info, overcome = self.information_gain(d_usage, att)
                 info = privacy_value * info / (
                         2 * self.information_gain_sensitivity())
-                infos.append(info)
-                overcomes[att] = overcome
+            infos.append(info)
+            overcomes[att] = overcome
+        infos = self.array_normalization(infos)
         chosen_index = pub_functions.generate_random_value_from_exponential(
             infos)
         chosen_att = candidate_atts[chosen_index]
-        chosen_overcome = overcomes[chosen_att]
-        print(chosen_overcome)
-        exit(1)
         return chosen_att, list(overcomes[chosen_att].keys()), \
                list(overcomes[chosen_att].values())
 
-    def information_gain_for_int64_attribute(self, d_usage, value_ranges):
+    def get_split_value_of_int64_attribute(self, d_usage, attribute,
+                                           privacy_value):
+        attribute_range = self.range_of_int64_attributes[attribute]
+        min_value = attribute_range[0]
+        max_value = attribute_range[1]
+        range_unit = (max_value - min_value) / self.num_of_ranges_for_int64
+        range_scores = np.zeros((self.num_of_ranges_for_int64, 1))
+        for i in range(self.num_of_ranges_for_int64):
+            min_value_of_sub_range = min_value + i * range_unit
+            max_value_of_sub_range = min_value + (i+1) * range_unit
+            value_usage = \
+                d_usage & \
+                (self._training_data[attribute] >= min_value_of_sub_range) \
+                & (self._training_data[attribute] < max_value_of_sub_range)
+            value_num = sum(value_usage)
+            range_scores[i] = value_num * privacy_value
+        range_scores = 5 * range_scores/np.sum(range_scores)
+        chosen_index = pub_functions.generate_random_value_from_exponential(
+            range_scores)
+        chosen_min = min_value + chosen_index * range_unit
+        chosen_max = min_value + (chosen_index + 1) * range_unit
+        random_value = random.random()
+        split_value = chosen_min + (chosen_max - chosen_min) * random_value
+        return split_value
+
+    def compute_updated_information_gain(self, d_usage):
+        information_gain = 0
+        total_num = sum(d_usage)
+        if total_num == 0:
+            return 0
+        for class_value in self.class_att_value:
+            c_usage = d_usage & (
+                    self._training_data[self.class_att] == class_value)
+            c_num = sum(c_usage)
+            if c_num > 0:
+                p = c_num / total_num
+                information_gain -= c_num * math.log2(p)
+        return information_gain
+
+    def information_gain(self, d_usage, att, split_value=None):
         info = 0
         overcomes = dict()
         if self._attribute_type[att] == const.DFRAME_INT64:
-            pass
+            l_usage = d_usage & (self._training_data[att] < split_value)
+            r_usage = d_usage & (self._training_data[att] >= split_value)
+            info = \
+                self.compute_updated_information_gain(l_usage) + \
+                self.compute_updated_information_gain(r_usage)
+            overcomes = {"<<"+str(split_value): l_usage,
+                         ">="+str(split_value): r_usage}
         else:
             unique_values = self._training_data[att][d_usage].drop_duplicates(
                keep='first').values
@@ -123,39 +164,8 @@ class PrivateID310D(ID3):
                 v_num = sum(v_usage)
                 if v_num == 0:
                     continue
-
                 overcomes[value] = v_usage
-                for class_value in self.class_att_value:
-                    c_usage = v_usage & (
-                            self._training_data[self.class_att] == class_value)
-                    c_num = sum(c_usage)
-                    if c_num > 0:
-                        p = c_num / v_num
-                        info -= p * math.log2(p)
-        return info, overcomes
-
-    def information_gain(self, d_usage, att):
-        info = 0
-        overcomes = dict()
-        if self._attribute_type[att] == const.DFRAME_INT64:
-            pass
-        else:
-            unique_values = self._training_data[att][d_usage].drop_duplicates(
-               keep='first').values
-            for value in unique_values:
-                v_usage = d_usage & (self._training_data[att] == value)
-                v_num = sum(v_usage)
-                if v_num == 0:
-                    continue
-
-                overcomes[value] = v_usage
-                for class_value in self.class_att_value:
-                    c_usage = v_usage & (
-                            self._training_data[self.class_att] == class_value)
-                    c_num = sum(c_usage)
-                    if c_num > 0:
-                        p = c_num / v_num
-                        info -= p * math.log2(p)
+                info += self.compute_updated_information_gain(v_usage)
         return info, overcomes
 
     def information_gain_sensitivity(self):
@@ -241,8 +251,8 @@ class PrivateID310D(ID3):
 
         # current node is non-leaf
         split_att, outcomes, sub_usages = \
-            self.expMech(d_usage, candidate_attributes,
-                         self.privacy_value_per_node)
+            self.exponential_mechanism(d_usage, candidate_attributes,
+                                       self.privacy_value_per_node)
         non_leaf_node = NonLeafNode(is_leaf=False, att_name=split_att)
         print("New NON-LEAF NODE: <%s>" % split_att)
         if not parent_node:

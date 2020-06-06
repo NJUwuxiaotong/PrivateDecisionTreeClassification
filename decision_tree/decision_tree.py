@@ -31,11 +31,11 @@ class DecisionTree(object):
         self.training_num = None
         self.test_num = None
         self.range_of_int64_attributes = None
-        self.get_range_of_int64_attributes()
         dataset_absolute_path = \
             const.DATASET_PATH + self._dataset_name + const.DATASET_SUFFIX
         self.data_process = DataPreProcess(dataset_absolute_path)
         self._read_data()
+        self.get_range_of_int64_attributes()
 
         self.root_node = None
         if tree_depth is None:
@@ -94,7 +94,7 @@ class DecisionTree(object):
         self._attribute_type.pop(self.class_att)
 
     def get_range_of_int64_attributes(self):
-        self.range_of_int64_attributes = list()
+        self.range_of_int64_attributes = dict()
         for att in self._attributes:
             if self._attribute_type[att] == const.DFRAME_INT64:
                 values = self._training_data[att].values
