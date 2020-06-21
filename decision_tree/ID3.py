@@ -31,12 +31,8 @@ class ID3(DecisionTree):
                 usages.append(sub_usage)
         return info_entropy_after_split, overcomes, usages
 
-    def get_information_of_int64_attribute(self, att, d_usage,
+    def get_split_value_of_int64_attribute(self, att, d_usage,
                                            split_type="mean", *params):
-        """
-        split type: random, median, mean, complex
-        """
-        total_num = sum(d_usage)
         unique_values = self._training_data[att][d_usage].drop_duplicates(
             keep='first').values
         if split_type == "random":
@@ -53,7 +49,16 @@ class ID3(DecisionTree):
             print("Error: Chosen split method %s is not in "
                   "[random, mean, median, complex]" % split_type)
             exit(1)
+        return threshold
 
+    def get_information_of_int64_attribute(self, att, d_usage,
+                                           split_type="mean", *params):
+        """
+        split type: random, median, mean, complex
+        """
+        threshold = self.get_split_value_of_int64_attribute(
+            att, d_usage, split_type, params[0])
+        total_num = sum(d_usage)
         l_usage, r_usage = self.get_left_right_usage(att, d_usage, threshold)
         l_num = sum(l_usage)
         r_num = sum(r_usage)
@@ -105,11 +110,6 @@ class ID3(DecisionTree):
                                                            params[0])
             return info_entropy_after_split, overcomes, usages
 
-    def get_left_right_usage(self, att, d_usage, threshold):
-        l_usage = d_usage & (self._training_data[att] < threshold)
-        r_usage = d_usage & (self._training_data[att] >= threshold)
-        return l_usage, r_usage
-
     def _information_gain(self, d_usage, att, *params):
         info_entropy_before_split = self._information_entropy(d_usage)
         info_entropy_after_split, overcomes, sub_usages = \
@@ -118,55 +118,7 @@ class ID3(DecisionTree):
         info_gain = info_entropy_before_split - info_entropy_after_split
         return info_gain, overcomes, sub_usages
 
-    def _select_split_attribute(self, d_usage, candidate_attributes, *params):
-        split_attribute = None
-        sub_usages = None
-        overcomes = None
-        info_gain = None
-        for att in candidate_attributes:
-            can_info_gain, can_overcomes, can_sub_usages = \
-                self._information_gain(d_usage, att, params[0])
-            if info_gain is None or can_info_gain > info_gain:
-                info_gain = can_info_gain
-                split_attribute = att
-                sub_usages = can_sub_usages
-                overcomes = can_overcomes
-        return info_gain, split_attribute, overcomes, sub_usages
-
-    def construct_sub_tree(self, parent_node, d_usage, candidate_attributes,
-                           max_depth, outcome):
-        candidate_attribute_num = len(candidate_attributes)
-        info_gain, split_attribute, outcomes, sub_usages = \
-            self._select_split_attribute(d_usage, candidate_attributes, None)
-
-        # leaf node
-        if candidate_attribute_num == 0 or max_depth == 1 or info_gain == 0 \
-                or self.check_leaf_same_class(d_usage):
-            # no parent node
-            leaf_node = self.set_leaf_node(d_usage)
-            print("NEW LEAF NODE: <%s>" % leaf_node)
-            if not parent_node:
-                self.root_node = leaf_node
-                self.root_node.set_parent_node(None)
-                return
-            else:
-                parent_node.add_sub_node(outcome, leaf_node)
-                return
-
-        # current node is non-leaf
-        non_leaf_node = NonLeafNode(is_leaf=False, att_name=split_attribute)
-        print("New NON-LEAF NODE: <%s>" % split_attribute)
-        if not parent_node:
-            self.root_node = non_leaf_node
-        else:
-            parent_node.add_sub_node(outcome, non_leaf_node)
-
-        num = 0
-        for sub_outcome in outcomes:
-            sub_candidate_attributes = copy.deepcopy(candidate_attributes)
-            sub_candidate_attributes = sub_candidate_attributes[
-                sub_candidate_attributes != split_attribute]
-            self.construct_sub_tree(non_leaf_node, sub_usages[num],
-                                    sub_candidate_attributes, max_depth - 1,
-                                    sub_outcome)
-            num += 1
+    def _information_metric(self, d_usage, att, *params):
+        info_gain, overcomes, sub_usages = self._information_gain(
+            d_usage, att, params[0])
+        return info_gain, overcomes, sub_usages

@@ -108,15 +108,15 @@ class DecisionTree(object):
         if total_num == 0:
             return 0
 
-        information = 0
+        infor_entropy = 0
         for class_value in self.class_att_value:
             sub_usage = d_usage & \
                         (self._training_data[self.class_att] == class_value)
             sub_num = sum(sub_usage)
             if sub_num > 0:
                 p = sub_num / total_num
-                information -= p * math.log2(p)
-        return information
+                infor_entropy -= p * math.log2(p)
+        return infor_entropy
 
     def construct_tree(self):
         data_usage = [True] * self.training_num
@@ -131,16 +131,66 @@ class DecisionTree(object):
         print("End to construct decision tree.")
 
     @abc.abstractmethod
+    def _information_metric(self, d_usage, att, *params):
+        return None, None, None
+
+    def get_left_right_usage(self, att, d_usage, threshold):
+        l_usage = d_usage & (self._training_data[att] < threshold)
+        r_usage = d_usage & (self._training_data[att] >= threshold)
+        return l_usage, r_usage
+
+    def _select_split_attribute(self, d_usage, candidate_attributes, *params):
+        split_attribute = None
+        sub_usages = None
+        overcomes = None
+        info_gain = None
+        for att in candidate_attributes:
+            can_info_gain, can_overcomes, can_sub_usages = \
+                self._information_metric(d_usage, att, params[0])
+            if info_gain is None or can_info_gain > info_gain:
+                info_gain = can_info_gain
+                split_attribute = att
+                sub_usages = can_sub_usages
+                overcomes = can_overcomes
+        return info_gain, split_attribute, overcomes, sub_usages
+
     def construct_sub_tree(self, parent_node, d_usage, candidate_attributes,
                            max_depth, outcome):
-        """
-        parent_node: parent node
-        d_usage: current data
-        candidate_attributes: attributes that can be selected
-        max_depth: the depth of decision tree
-        outcome: attribute value
-        """
-        pass
+        candidate_attribute_num = len(candidate_attributes)
+        info_gain, split_attribute, outcomes, sub_usages = \
+            self._select_split_attribute(d_usage, candidate_attributes, None)
+
+        # leaf node
+        if candidate_attribute_num == 0 or max_depth == 1 or info_gain == 0 \
+                or self.check_leaf_same_class(d_usage):
+            # no parent node
+            leaf_node = self.set_leaf_node(d_usage)
+            print("NEW LEAF NODE: <%s>" % leaf_node)
+            if not parent_node:
+                self.root_node = leaf_node
+                self.root_node.set_parent_node(None)
+                return
+            else:
+                parent_node.add_sub_node(outcome, leaf_node)
+                return
+
+        # current node is non-leaf
+        non_leaf_node = NonLeafNode(is_leaf=False, att_name=split_attribute)
+        print("New NON-LEAF NODE: <%s>" % split_attribute)
+        if not parent_node:
+            self.root_node = non_leaf_node
+        else:
+            parent_node.add_sub_node(outcome, non_leaf_node)
+
+        num = 0
+        for sub_outcome in outcomes:
+            sub_candidate_attributes = copy.deepcopy(candidate_attributes)
+            sub_candidate_attributes = sub_candidate_attributes[
+                sub_candidate_attributes != split_attribute]
+            self.construct_sub_tree(non_leaf_node, sub_usages[num],
+                                    sub_candidate_attributes, max_depth - 1,
+                                    sub_outcome)
+            num += 1
 
     def set_leaf_node(self, usage):
         leaf_node = LeafNode(is_leaf=True)

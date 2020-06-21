@@ -14,8 +14,10 @@ def get_Laplace_PDF(value):
     else:
         return 1 - math.exp(-1*value/l)/2
 
+
 def get_probability_from_Laplace(noisy_magnitude, value):
     return math.exp(-1*math.fabs(value)/noisy_magnitude)/(2*noisy_magnitude)
+
 
 def generate_random_value_from_Laplace(start_v, stop_v, noisy_magnitude):
     while True:
@@ -23,6 +25,7 @@ def generate_random_value_from_Laplace(start_v, stop_v, noisy_magnitude):
         random_pr = random.uniform(0, 1)
         if random_pr < get_probability_from_Laplace(noisy_magnitude, value):
             return value
+
 
 def generate_random_value_from_exponential(pr_values):
     """
@@ -32,6 +35,7 @@ def generate_random_value_from_exponential(pr_values):
     values = np.exp(values)
     values = values/np.sum(values)
     return generate_random_from_specified_pr(values)
+
 
 def generate_random_from_specified_pr(pr_values):
     """
@@ -51,6 +55,7 @@ def generate_random_from_specified_pr(pr_values):
         if pr <= sum_pr:
             return chosen_index
         chosen_index += 1
+
 
 def show_pdf(pdf_type):
     if pdf_type not in ["Laplace"]:

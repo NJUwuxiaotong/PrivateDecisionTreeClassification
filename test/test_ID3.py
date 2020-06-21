@@ -1,7 +1,7 @@
 from decision_tree.ID3 import ID3
 
 
-id3 = ID3('adult', training_per=0.1, test_per=0.3, tree_depth=5)
+id3 = ID3('adult', training_per=0.5, test_per=0.2, tree_depth=5)
 id3.construct_tree()
 
 print("\n------------ ID3 DECISION STRUCTURE ------------------")
