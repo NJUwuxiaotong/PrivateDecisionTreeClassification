@@ -1,15 +1,20 @@
 class Node(object):
-    def __init__(self, parent_node=None, is_leaf=None):
+    def __init__(self, parent_node=None, is_leaf=None, parent_index=None):
         # parent node of the node
         self._parent_node = parent_node
         # check whether the node is leaf
         self._is_leaf = is_leaf
+        # parent index
+        self._parent_index = parent_index
 
     def set_parent_node(self, p_node):
         self._parent_node = p_node
 
     def set_is_leaf(self, is_leaf):
         self._is_leaf = is_leaf
+
+    def set_parent_index(self, parent_index):
+        self._parent_index = parent_index
 
     @property
     def parent_node(self):
@@ -18,6 +23,10 @@ class Node(object):
     @property
     def is_leaf(self):
         return self._is_leaf
+
+    @property
+    def parent_index(self):
+        return self._parent_index
 
 
 class NonLeafNode(Node):
@@ -63,6 +72,12 @@ class LeafNode(Node):
             print("WARNING: class key [%s] has been in class values"
                   % class_key)
         self._class_values[class_key] = class_value
+
+    def increment_class_value(self, class_key):
+        if class_key in self._class_values.keys():
+            self._class_values[class_key] += 1
+        else:
+            self._class_values[class_key] = 1
 
     @property
     def class_values(self):

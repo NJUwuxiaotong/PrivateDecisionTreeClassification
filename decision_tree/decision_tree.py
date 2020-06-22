@@ -19,8 +19,8 @@ class DecisionTree(object):
         self._training_data_shape = None
         self._test_data = None
         self._test_data_shape = None
-        self._attributes = None          # (key, value) except of class
-        self._attribute_values = None
+        self._attributes = None          # key except of class
+        self._attribute_values = None    # (key, value) except of class
         self._attribute_type = None      # attribute type except of class
         self._attribute_num = 0          # except of class
         self.class_att = None            # only one class name
@@ -227,13 +227,28 @@ class DecisionTree(object):
         if not current_node:
             return
         if current_node.is_leaf:
-            print("%s%s --> %s" % (t_space, outcome,
-                                   current_node.class_results))
+            print("%s%s --> %s/%s" % (t_space, outcome,
+                                      current_node.class_results,
+                                      current_node.class_values))
         else:
             print("%s%s --> %s" % (t_space, outcome, current_node.att_name))
             for sub_outcome, sub_node in current_node.sub_nodes.items():
                 self.show_structure_of_decision_tree(
                     sub_node, sub_outcome, t_space + self.unit_space)
+
+    def show_statistics_of_decision_tree(self, current_node, statistics):
+        if not current_node:
+            return
+        if current_node.is_leaf:
+            for class_key, result in current_node.class_values.items():
+                if class_key not in statistics.keys():
+                    statistics[class_key] = result
+                else:
+                    statistics[class_key] += result
+        else:
+            for sub_outcome, sub_node in current_node.sub_nodes.items():
+                self.show_statistics_of_decision_tree(
+                    sub_node, statistics)
 
     def get_random_class_label(self):
         label_num = len(self.class_att_value)
