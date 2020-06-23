@@ -57,7 +57,8 @@ class RandomDecisionTree(DecisionTree):
                     self.range_of_int64_attributes[chosen_attribute]
                 max_v = attribute_range[0]
                 min_v = attribute_range[1]
-                threshold = min_v + random.random() * (max_v - min_v)
+                # threshold = min_v + random.random() * (max_v - min_v)
+                threshold = (min_v + max_v)/2
                 new_candidate_attributes = copy.deepcopy(
                     candidate_attributes)
                 sub_node = self.construct_sub_trees(
@@ -133,6 +134,67 @@ class RandomDecisionTree(DecisionTree):
             # prune parent node
             if parent_node is not None:
                 self._prune_random_decision_tree(parent_node)
+
+    def get_class_label_of_record(self, record):
+        node = self.root_node
+        while True:
+            if node.is_leaf:
+                return node.class_values
+
+            att = node.att_name
+            value = record[att].values[0]
+            sub_nodes = node.sub_nodes
+            if self._attribute_type[att] == const.DFRAME_INT64:
+                node_keys = list(sub_nodes.keys())
+
+                if len(node_keys) == 0:
+                    return None
+
+                if len(node_keys) == 1:
+                    bp = float(node_keys[0][2:])
+                    if (value < bp and node_keys[0][:2] == "<<") or \
+                            (value > bp and node_keys[0][:2] == ">="):
+                        node = node.sub_nodes[node_keys[0]]
+                    else:
+                        return None
+
+                if len(node_keys) == 2:
+                    l_bp = node_keys[0]
+                    r_bp = node_keys[1]
+                    bp = float(l_bp[2:])
+
+                    if value < bp:
+                        if l_bp[:2] == "<<":
+                            node = node.sub_nodes[l_bp]
+                        else:
+                            node = node.sub_nodes[r_bp]
+                    else:
+                        if l_bp[:2] == "<<":
+                            node = node.sub_nodes[r_bp]
+                        else:
+                            node = node.sub_nodes[l_bp]
+            else:
+                if value not in sub_nodes.keys():
+                    return None
+                else:
+                    node = node.sub_nodes[value]
+
+    def test_training_records(self):
+        results = dict()
+        num = 0
+        for i in range(self._training_data_shape[0]):
+            record = self._training_data[i:i + 1]
+            class_value = self.get_class_label_of_record(record)
+            if class_value is None:
+                pass
+            else:
+                num += 1
+        print("RESULT: %s " % num)
+
+    def test_one_test_records(self):
+        record = self._test_data[0:1]
+        print(record)
+        print(self.get_class_label_of_record(record))
 
     def _information_metric(self, d_usage, att, *params):
         pass

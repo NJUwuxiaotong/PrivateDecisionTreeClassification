@@ -20,5 +20,8 @@ rdt.show_statistics_of_decision_tree(rdt.root_node, statistics)
 print("Check statistics vs training data: %s-%s " %
       (sum(statistics.values()), rdt.training_num))
 
+rdt.test_training_records()
+rdt.test_one_test_records()
+
 exit(1)
 rdt.get_test_results()
