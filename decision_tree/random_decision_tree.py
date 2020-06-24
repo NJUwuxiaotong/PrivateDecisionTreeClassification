@@ -23,6 +23,9 @@ class RandomDecisionTree(DecisionTree):
         self.candidate_attributes = []
         attributes = copy.deepcopy(self._attributes)
         attributes = attributes.tolist()
+        # int64_attributes = list(self.range_of_int64_attributes.keys())
+        # discrete_attributes = list(set(attributes) - set(int64_attributes))
+        # attributes = discrete_attributes
         attribute_num = len(attributes)
         print("Info: Start to randomly select %s attributes" % self._tree_depth)
         for i in range(self._tree_depth - 1):

@@ -85,8 +85,31 @@ class RandomForest(DecisionTree):
                 max_num = value
         return chosen_class
 
+    def predict_class_value_of_average_probabilities(self, record):
+        class_value_statistics = dict()
+        for i in range(self.rdt_num):
+            class_value = self.random_decision_trees[i]\
+                .get_class_label_of_record(record)
+            if class_value is None:
+                continue
+            total_sum = sum(class_value.values())
+            for key_class, value in class_value.items():
+                if key_class in class_value_statistics.keys():
+                    class_value_statistics[key_class] += value / total_sum
+                else:
+                    class_value_statistics[key_class] = value / total_sum
+
+        chosen_class = None
+        max_num = None
+        for key_class, value in class_value_statistics.items():
+            if max_num is None or max_num < value:
+                chosen_class = key_class
+                max_num = value
+        return chosen_class
+
     def predict_class_value_of_record(self, record):
-        return self.predict_class_value_of_record_by_vote(record)
+        #return self.predict_class_value_of_record_by_vote(record)
+        return self.predict_class_value_of_average_probabilities(record)
 
     def get_test_results(self):
         prediction_accuracy = 0
