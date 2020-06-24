@@ -1,6 +1,9 @@
-# PrivateDecisionTreeClassification
+# Private-DTC: PrivateDecisionTreeClassification
 
-Algorithms:
+This project is for multiple decision tree classifiers and their private extended versions.
+
+----------
+Implemented Algorithms:
 * C4.5 Decision Tree (C4_5) [1]
 * Private C4.5 Decision Tree (PrivateC4_5_05P) [2]
 
