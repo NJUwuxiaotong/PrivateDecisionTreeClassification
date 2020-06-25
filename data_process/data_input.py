@@ -5,94 +5,63 @@ from data_process.data_preprocess import DataPreProcess
 
 
 class DataInput(object):
-    def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
-                 tree_depth=None):
+    """
+    Function: get data from file. Besides, it also gets other information,
+    including attributes and their values.
+    """
+    def __init__(self, dataset_name):
         self._dataset_name = dataset_name
+        self._dataset_absolute_path = \
+            const.DATASET_PATH + self._dataset_name + const.DATASET_SUFFIX
         self._check_file_path()
-        self._training_data = None       # type: DataFrame
-        self._training_data_shape = None
-        self._test_data = None
-        self._test_data_shape = None
+        self._data = None                # DataFrame
         self._attributes = None          # key except of class
         self._attribute_values = None    # (key, value) except of class
-        self._attribute_type = None      # attribute type except of class
+        self._attribute_types = None      # attribute type except of class
         self._attribute_num = 0          # except of class
-        self.class_att = None            # only one class name
-        self.class_att_value = list()    # class value
-        self.training_per = training_per
-        self.test_per = test_per
-        self._check_parameters()
-        self.training_num = None
-        self.test_num = None
-        self.range_of_int64_attributes = None
-        dataset_absolute_path = \
-            const.DATASET_PATH + self._dataset_name + const.DATASET_SUFFIX
-        self.data_process = DataPreProcess(dataset_absolute_path)
-        self._read_data()
-        self.get_range_of_int64_attributes()
-
-        self.root_node = None
-        if tree_depth is None:
-            self._tree_depth = int(self._attribute_num/2)
-        else:
-            self._tree_depth = tree_depth
-        self.unit_space = "\t"
-        self.training_time = 0.0
-        self.test_time = 0.0
+        self._class_attribute = None     # only one class name
+        self._class_label = list()       # class value
+        self._range_of_int64_attributes = None
+        self.data_process = DataPreProcess(self._dataset_absolute_path)
 
     def _check_file_path(self):
-        dataset_absolute_path = const.DATASET_PATH + self._dataset_name \
-                                + const.DATASET_SUFFIX
-        attribute_type_file_path = \
-            const.DATASET_PATH + self._dataset_name \
-            + const.ATTRIBUTE_TYPE_FILE_SUFFIX
-
-        print(dataset_absolute_path)
-        if not os.path.exists(dataset_absolute_path):
-            print(self._dataset_name)
+        print("Info: The absolute path of input file is %s" %
+              self._dataset_absolute_path)
+        if not os.path.exists(self._dataset_absolute_path):
             print("Error: Dataset [%s] doesn't exist." % self._dataset_name)
             exit(1)
 
+        """
+        attribute_type_file_path = \
+            const.DATASET_PATH + self._dataset_name \
+            + const.ATTRIBUTE_TYPE_FILE_SUFFIX
         if not os.path.exists(attribute_type_file_path):
-            print(attribute_type_file_path)
             print("Error: Attribute type file for [%s] doesn't exist." %
                   self._dataset_name)
             exit(1)
+        """
 
-    def _check_parameters(self):
-        if self.training_per + self.test_per > 1:
-            print("Error: The percentage (%s, %s) of data in training and "
-                  "test exceeds 1" % (self.training_per, self.test_per))
-            exit(1)
-
-    def _read_data(self):
+    def read_data(self):
         self.data_process.read_data_from_file()
-        self._training_data = self.data_process.data
-        self._training_data_shape = self.data_process.data_shape
-        self.training_num = \
-            int(self._training_data_shape[0] * self.training_per)
-        self.test_num = int(self._training_data_shape[0] * self.test_per)
-        self._test_data = self._training_data[-1*self.test_num:]
-        self._training_data = self._training_data[:self.training_num]
-        self._training_data_shape = tuple([self.training_num,
-                                           self._training_data_shape[1]])
-        self._test_data_shape = tuple([self.test_num,
-                                       self._training_data_shape[1]])
+        self.data_process.process_abnormal_data()
+        self._data = self.data_process.data
         self._attributes = self.data_process.attributes[:-1]
+        self._attributes = self._attributes.tolist()
         self._attribute_num = len(self._attributes)
-        self.class_att = self.data_process.attributes[-1]
+        self._class_attribute = self.data_process.attributes[-1]
         self._attribute_values = self.data_process.attribute_values
-        self.class_att_value = self._attribute_values.pop(
-            self.class_att)
-        self._attribute_type = self.data_process.attribute_types
-        self._attribute_type.pop(self.class_att)
+        self._class_label = self._attribute_values.pop(
+            self._class_attribute)
+        self._attribute_types = self.data_process.attribute_types
+        self._attribute_types.pop(self._class_attribute)
+        self.get_range_of_int64_attributes()
 
     def get_range_of_int64_attributes(self):
-        self.range_of_int64_attributes = dict()
+        self._range_of_int64_attributes = dict()
         for att in self._attributes:
-            if self._attribute_type[att] == const.DFRAME_INT64:
-                values = self._training_data[att].values
+            if self._attribute_types[att] == const.DFRAME_INT64:
+                values = self._data[att].values
                 max_value = values.max()
                 min_value = values.min()
-                self.range_of_int64_attributes[att] = [min_value*0.75,
-                                                       max_value*(1+0.25)]
+                self._range_of_int64_attributes[att] = [min_value * 0.75,
+                                                        max_value * (1+0.25)]

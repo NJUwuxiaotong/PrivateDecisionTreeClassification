@@ -6,29 +6,25 @@ from decision_tree.decision_tree import DecisionTree
 from decision_tree.decision_tree_node import NonLeafNode, LeafNode
 
 
-class RandomDecisionTree(DecisionTree):
-    def __init__(self, dataset_name, training_per=0.7, test_per=0.3,
-                 tree_depth=None):
-        super(RandomDecisionTree, self).__init__(dataset_name, training_per,
-                                                 test_per, tree_depth)
-        if tree_depth >= self._attribute_num:
-            print("Error: The depth of random decision tree is greater than "
-                  "the number of attributes, e.g., %s > %s." %
-                  (tree_depth, self._attribute_num))
-            exit(1)
-        self.candidate_attributes = None
+class RandomDecisionTree(object):
+    def __init__(self, attribute_types, attribute_values,
+                 range_of_int64_attributes, class_att):
+        self._attribute_type = attribute_types
+        self._attribute_values = attribute_values
+        self._class_att = class_att
+        self.range_of_int64_attributes = range_of_int64_attributes
+        self.root_node = None
+        self.candidate_attributes = []
         self._leaf_nodes = list()
 
-    def generate_candidate_attributes(self):
-        self.candidate_attributes = []
-        attributes = copy.deepcopy(self._attributes)
-        attributes = attributes.tolist()
+    def generate_candidate_attributes(self, attributes, tree_depth):
+        attributes = copy.deepcopy(attributes)
         # int64_attributes = list(self.range_of_int64_attributes.keys())
         # discrete_attributes = list(set(attributes) - set(int64_attributes))
         # attributes = discrete_attributes
         attribute_num = len(attributes)
-        print("Info: Start to randomly select %s attributes" % self._tree_depth)
-        for i in range(self._tree_depth - 1):
+        print("Info: Start to randomly select %s attributes" % tree_depth)
+        for i in range(tree_depth - 1):
             attribute_index = random.randint(0, attribute_num - 1)
             chosen_attribute = attributes.pop(attribute_index)
             self.candidate_attributes.append(chosen_attribute)
@@ -36,14 +32,11 @@ class RandomDecisionTree(DecisionTree):
         print("Info: randomly select attributes: %s" %
               self.candidate_attributes)
 
-    def construct_tree(self):
+    def construct_tree_structure(self):
         print("Info: Start to construct random decision tree ...")
         print("Info: Construct non-leaf nodes ...")
         self.root_node = self.construct_sub_trees(
             None, self.candidate_attributes)
-        print("Info: End non-leaf nodes")
-        self.update_statistics()
-        print("Info: End to construct random decision tree.")
 
     def construct_sub_trees(self, parent_node, candidate_attributes):
         if not candidate_attributes:
@@ -85,10 +78,10 @@ class RandomDecisionTree(DecisionTree):
                     non_leaf_node.add_sub_node(attribute_value, sub_node)
         return non_leaf_node
 
-    def update_statistics(self):
+    def update_statistics(self, data, record_num):
         print("Info: Start to add training data")
-        for i in range(self._training_data_shape[0]):
-            record = self._training_data[i:i+1]
+        for i in range(record_num):
+            record = data[i:i+1]
             self.add_instance(self.root_node, record)
         print("Info: End to add training data")
 
@@ -111,7 +104,7 @@ class RandomDecisionTree(DecisionTree):
                 if r_value in sub_node_keys:
                     self.add_instance(sub_nodes[r_value], record)
         else:
-            class_value = record[self.class_att].values[0]
+            class_value = record[self._class_att].values[0]
             node.increment_class_value(class_value)
 
     def get_leaf_nodes(self, current_node):
@@ -182,11 +175,10 @@ class RandomDecisionTree(DecisionTree):
                 else:
                     node = node.sub_nodes[value]
 
-    def test_training_records(self):
-        results = dict()
+    def test_training_records(self, data, record_num):
         num = 0
-        for i in range(self._training_data_shape[0]):
-            record = self._training_data[i:i + 1]
+        for i in range(record_num):
+            record = data[i:i + 1]
             class_value = self.get_class_label_of_record(record)
             if class_value is None:
                 pass
@@ -194,8 +186,7 @@ class RandomDecisionTree(DecisionTree):
                 num += 1
         print("RESULT: %s " % num)
 
-    def test_one_test_records(self):
-        record = self._test_data[0:1]
+    def test_one_test_records(self, record):
         print(record)
         print(self.get_class_label_of_record(record))
 
