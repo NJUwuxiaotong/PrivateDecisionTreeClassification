@@ -9,7 +9,8 @@ Implemented Algorithms:
 
 ----------
 Test Dataset:
-* Adult from UCI
+* Adult from UCI Machine Learning Repository [http://archive.ics.uci.edu]. The dataset concludes 32560 records, 14 attributes and 2 class labels.
+* Nursery from UCI Machine Learning Repository. The dataset consists of 12959 records, 8 discrete attributes and 3 class labels.
 
 References:
 1. J.R. Quinlan. Improved Use of Continuous Attributes in C4.5. Journal of Artificial Intelligence Research no. 4, pp. 77-90, 1996.

@@ -1,4 +1,4 @@
-from decision_tree.ID3 import ID3
+from decision_tree.single_decision_tree_classifier.ID3 import ID3
 
 
 id3 = ID3('adult', training_per=0.5, test_per=0.2, tree_depth=5)

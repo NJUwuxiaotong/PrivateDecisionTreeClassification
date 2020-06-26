@@ -1,4 +1,4 @@
-from decision_tree.C4_5 import C45
+from decision_tree.single_decision_tree_classifier.C4_5 import C45
 
 
 c45 = C45('adult', training_per=0.3, test_per=0.3, tree_depth=7)
