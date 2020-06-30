@@ -2,7 +2,8 @@ import copy
 import random
 
 from common import constants as const
-from decision_tree.single_decision_tree_classifier.decision_tree_node import NonLeafNode, LeafNode
+from decision_tree.single_decision_tree_classifier.decision_tree_node \
+    import NonLeafNode, LeafNode
 
 
 class RandomDecisionTree(object):

@@ -26,7 +26,6 @@ def generate_random_value_from_Laplace(start_v, stop_v, noisy_magnitude):
         if random_pr < get_probability_from_Laplace(noisy_magnitude, value):
             return value
 
-
 def generate_random_value_from_exponential(pr_values):
     """
     pr_values: a list of values
